@@ -1,5 +1,5 @@
 # SimOfEmbryoCluster
-Python version simulation code of starfish embryo cluster (ref. doi.org/10.1038/s41586-022-04889-6)
+Python version simulation code of starfish embryo cluster (ref. [doi.org/10.1038/s41586-022-04889-6](https://doi.org/10.1038/s41586-022-04889-6)
 
 # How to use
 1. Install package *numba, numpy, scipy, matplotlib*
