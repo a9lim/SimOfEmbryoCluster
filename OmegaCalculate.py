@@ -6,15 +6,16 @@ from matplotlib import animation
 from matplotlib.ticker import LogLocator, ScalarFormatter
 from matplotlib.colors import LogNorm
 
-simID = 'sym'
+simID = 'sym1_2000_500_100_UNS'
 
-MK_video = 0
+MK_video = 1
 
 ### Load ode solution ###
 Pos = np.load('Data/'+simID+'/'+simID+'_pos.npy')
 time = np.load('Data/'+simID+'/'+simID+'_time.npy')
-omega0 = np.load(simID+'Data/'+simID+'/'+'_omega0.npy')
+omega0 = np.load('Data/'+simID+'/'+simID+'_omega0.npy')
 [N, L, Rnf_int, tau0, ModOmega0, N0_damping, NFinteract] = np.load('Data/'+simID+'/'+simID+'_params.npy')
+N = int(N)
 
 @nb.njit
 def taueta(r):
@@ -109,6 +110,6 @@ ani = animation.FuncAnimation(fig, update, frames=range(len(time)), interval=20)
 if MK_video:
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-    ani.save('Data/'+simID+'/'+simID+'animation.mp4', writer=writer)
+    ani.save('Data/'+simID+'/'+simID+'_animation.mp4', writer=writer)
 
 plt.show()
