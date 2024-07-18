@@ -7,7 +7,6 @@ import os
 from scipy.sparse import csgraph
 from scipy.integrate import solve_ivp
 
-
 # Solve ODE system for disk model with effective hydrodynamic interactions
 
 np.random.seed()
@@ -29,7 +28,7 @@ print("sim ID: "+simID)
 # Simulation time for ODE model
 simtimes = np.linspace(0, 2000, 1000)
 
-N = 500
+N = 10
 
 # Size of periodic box (in units of embryo size)
 L = 100
@@ -103,16 +102,14 @@ for i in range(1):
     rand_stretch = 1 + 0.4 * np.random.randn(N)
     Pos_init = np.column_stack((rand_stretch, rand_stretch)) * Pos_init
 # % % Move to center of domain
-Pos_init = Pos_init - np.mean(Pos_init, axis=0)
-Pos_init = Pos_init % L
+Pos_init -= np.mean(Pos_init, axis=0)
+Pos_init %= L
 # % %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 # % % Plot initial positions
 fig, ax = plt.subplots()
-xdata = Pos_init[:,0]
-ydata = Pos_init[:,1]
 ax.clear()
-ax.scatter(xdata, ydata, c='r', s=3, edgecolors='black')
+ax.scatter(Pos_init[:,0], Pos_init[:,1], c='r', s=3, edgecolors='black')
 plt.show()
 
 # % % Flatten for ode solver
@@ -131,16 +128,14 @@ def norm2d(arr, ax):
 @nb.njit
 def u_st(f, r):
     r_norm = norm2d(r, 1).reshape(-1, 1)
-    return (1 / (8 * np.pi)) * (f / r_norm +
-                                r * np.sum(f * r, axis=1).reshape(-1, 1) / (r_norm ** 3).reshape(-1, 1))
+    return (f / r_norm + r * np.sum(f * r, axis=1).reshape(-1, 1) / (r_norm ** 3).reshape(-1, 1)) / (8 * np.pi)
 
 ################% Steric repulsion of nearby embryos %%%%%%%%%%%%%%%%%%%%%
 # 1/r^12 potential repulsion between midpoints -> 1/r^13 force
 # (written \vec{r}/r^14 because of vec(r) in nominator!!)
 @nb.njit
 def Frep(r):
-    r_norm = norm2d(r, 1).reshape(-1, 1)
-    return 12 * r / r_norm ** 14
+    return 12 * r / norm2d(r, 1).reshape(-1, 1) ** 14
 
 ############### Radial dependence of near-field forces %%%%%%%%%%%%%%%%%##
 @nb.njit
@@ -157,26 +152,20 @@ def taueta(r):
 def vec_img(e):
     return np.column_stack((e[:, 0], e[:, 1], -e[:, 2]))  # Stokeslet, force- and source-dipole
 
-def EmbryoDynamics(t, y_):
+def EmbryoDynamics(t, y):
     # Print time for progress
     if t % 0.001 < 0.00005:
         print(t)
+
     if per_dom == 1:
         # Periodic boundary conditions
-        y = y_ % L
-    else:
-        y = y_
+        y %= L
+
     # ODE function of embryo dynamics for axisymmetric embryos:
     # Input vector y contains for each particle 2D position and 3D orientation
     # [x1; y1; x2; y2; ... xN; yN]
     # Extract and format positions as needed for flow functions
-    Pos3D = y[:2 * N].reshape((N, 2))
-    Pos3D = np.column_stack((Pos3D, -h * np.ones(N)))
-
-    if Surf_Pot == 1:
-        # Cylindircal coordinates of the particle positions
-        R_pos = np.linalg.norm(Pos3D[:, :2], axis=1)
-        Phi_pos = np.pi + np.arctan2(-Pos3D[:, 1], -Pos3D[:, 0])
+    Pos3D = np.column_stack((y[:2 * N].reshape((N, 2)), -h * np.ones(N)))
     
     # Signed distance matrices r_i - r^0_i where flows from
     # singularities placed at r^0_i are evaluated at r_i
@@ -184,17 +173,15 @@ def EmbryoDynamics(t, y_):
     dist_y = Pos3D[:, 1].reshape(1, -1) - Pos3D[:, 1].reshape(-1, 1)
     # Stokeslet force orientation (DON'T CHANGE FOR DISK MODEL)
     grav = np.tile(grav_vec, (N, 1))
-    grav = grav / np.linalg.norm(grav, axis=1).reshape(-1, 1)
+    grav /= np.linalg.norm(grav, axis=1).reshape(-1, 1)
 
     # Fixed global orientation of gravity
-    fst = grav
-    fst_img = vec_img(fst)
+    fst_img = vec_img(grav)
 
     # Determine angular frequency of each particle
     rij = np.sqrt(dist_x ** 2 + dist_y ** 2)  # Distance matrix
-    NH_matrix = (rij < (2 + Rnf_int)).astype(int)  # Adjacency matrix of particles within near-field interaction distance
+    NH_matrix = (rij < (2 + Rnf_int)).astype(int) - np.eye(N, dtype=int)  # Adjacency matrix of particles within near-field interaction distance
     r,p = csgraph.connected_components(NH_matrix, directed=False)
-    NH_matrix = NH_matrix - np.eye(N)
     omega_all = omega0.copy()
 
     if SelectFarField == 1:
@@ -205,17 +192,13 @@ def EmbryoDynamics(t, y_):
     if NFinteract == 1:
         for j in range(r): # Loop through connected components        
             idx_num = []
-            if np.count_nonzero(p==j) > 1: # If at least two elements in connected component
+            if np.count_nonzero(p == j) > 1: # If at least two elements in connected component
                 # Extract numeric indices of all disks in this component
                 idx_num = np.where(p == j)[0]
-                # print(idx_num)
             
             if len(idx_num):
                 # Number of disks in current connected component
                 nrd_cc = len(idx_num)
-                
-                # # Sorted index vector needed to fill linear system matrix
-                # idx_lin = list(range(nrd_cc))
                 
                 # Linear matrix of the torque balance for given connected component
                 M = np.zeros((nrd_cc, nrd_cc))
@@ -227,36 +210,27 @@ def EmbryoDynamics(t, y_):
                     
                     # Near-field interaction neighbours for current disk
                     nh_vec = np.where(NH_matrix[curr_disk, :] > 0)[0]
-                    
-                    # Pair-wise distances of disks within interaction distance
-                    rij_curr = rij[curr_disk, nh_vec]
-                    
-                    # Torque interactions strengths for those distances
-                    tau = tau0 * taueta(rij_curr)
+
+                    # Torque interactions strengths for pair-wise distances of disks within interaction distance
+                    tau = tau0 * taueta(rij[curr_disk, nh_vec])
                     
                     # Fill linear system matrix row for given particle
                     M[l, l] = 1 + np.sum(tau)
                     for n in range(len(nh_vec)):
-                        M[l, np.where(idx_num==nh_vec[n])[0]] = tau[n]
-                    
+                        M[l, np.where(idx_num == nh_vec[n])[0]] = tau[n]
+
+                omega0_M = omega0[idx_num]
                 if ModOmega0 == 1:
                     # Renormalize intrinsic rotation frequencies
-                    omega0_M = omega0[idx_num] / (1 + (nrd_cc / N0_damping)**2)
-                # Solve for the angular frequencies in this connected component
-                omega = np.linalg.solve(M, omega0_M)
-                # Add into array of all angular frequencies according to disk IDs
-                omega_all[idx_num] = omega
+                    omega0_M /= (1 + (nrd_cc / N0_damping)**2)
+                # Add angular frequencies in this connected component into array according to disk IDs
+                omega_all[idx_num] = np.linalg.solve(M, omega0_M)
 
                 if SelectFarField == 1:
                     # If these particle belong to group with more than 3 particles
                     # remove those indices from the far-field interaction list
                     if len(idx_num) > 3:
                         idx_FF[idx_num] = False
-
-    if Surf_Pot == 1:
-        # Emulate centering effect of well curvature
-        upot_x = -WellLength ** (-2) * (R_pos) * np.cos(Phi_pos)
-        upot_y = -WellLength ** (-2) * (R_pos) * np.sin(Phi_pos)
 
     # Sum up all flow contributions that affect a given disk
     # Cross-product vectors for near-field force interactions
@@ -273,11 +247,7 @@ def EmbryoDynamics(t, y_):
             idx_lat = np.ones(N, dtype=bool)
             idx_lat[j] = False
 
-            if SelectFarField == 1 and idx_FF[j]:
-                # If particle is in far-field group (at most one neighbour)
-                # it will interact with all particles
-                pass
-            else:
+            if SelectFarField != 1 or not idx_FF[j]:
                 # Find all particles further than a distance away
                 # and exclude them from Stokeslet interactions
                 idx_far = rij[:, j] > RFg_int
@@ -297,12 +267,6 @@ def EmbryoDynamics(t, y_):
         # the surface only image flow interaction play a role
         r_curr = np.column_stack((dist_x[idx_img, j], dist_y[idx_img, j], -2 * h * np.ones(np.sum(idx_img))))
 
-        # Collect distances for steric interactions
-        if Sterinteract == 1:
-            # Same neighbourhood as Stokeslet interaction
-            r_curr_ster = r_curr.copy()
-            r_curr_ster[:, 2] = 0
-
         # Prepare according arrays of vectors parameterizing flow singularities
         fst_curr = fst_img[idx_img]
         # Collect all attractive Stokeslet flow interactions (no additional weighting)
@@ -314,6 +278,9 @@ def EmbryoDynamics(t, y_):
         
         # Steric repulsion only laterally between embryos
         if Sterinteract == 1:
+            # Same neighbourhood as Stokeslet interaction
+            r_curr_ster = r_curr.copy()
+            r_curr_ster[:, 2] = 0
             u_rep = 0.5 * np.sum((Frep_str[j] + Frep_str[idx_ster]).reshape(-1,1) * Frep(r_curr_ster), axis=0)
             u_e[j] += u_rep[:2]
         
@@ -334,7 +301,11 @@ def EmbryoDynamics(t, y_):
 
     # If well curvature effect is included
     if Surf_Pot == 1:
-        u_pot = np.column_stack((upot_x, upot_y)).T
+        # Cylindircal coordinates of the particle positions
+        R_pos = np.linalg.norm(Pos3D[:, :2], axis=1)
+        Phi_pos = np.pi + np.arctan2(-Pos3D[:, 1], -Pos3D[:, 0])
+        # Emulate centering effect of well curvature
+        u_pot = -WellLength ** (-2) * np.column_stack((R_pos * np.cos(Phi_pos), R_pos * np.sin(Phi_pos))).T
         dydt += u_pot.flatten()
 
     return dydt
@@ -343,8 +314,7 @@ def EmbryoDynamics(t, y_):
 start_time = time.time()
 ysol = solve_ivp(EmbryoDynamics, [simtimes[0], simtimes[-1]], Pos_init.flatten(), method="RK23", t_eval=simtimes, rtol=1e-3, atol=1e-3)
 end_time = time.time()
-execution_time = end_time - start_time
-print("Total time: ", execution_time)
+print("Total time: ", end_time - start_time)
 print(ysol)
 
 # Save data
