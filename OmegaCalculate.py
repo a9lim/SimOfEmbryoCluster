@@ -3,12 +3,11 @@ import scipy.sparse.csgraph as csgraph
 import numba as nb
 import matplotlib.pyplot as plt
 from matplotlib import animation
-from matplotlib.ticker import LogLocator, ScalarFormatter
 from matplotlib.colors import LogNorm
 
-simID = 'sym'
+simID = 'test'
 
-MK_video = 1
+MK_video = True
 
 ### Load ode solution ###
 Pos = np.load('Data/'+simID+'/'+simID+'_pos.npy')
@@ -24,25 +23,23 @@ def taueta(r):
 def ComputeOmega(x,y,omega0):
     dist_x = x.reshape(1, -1) - x.reshape(-1, 1)
     dist_y = y.reshape(1, -1) - y.reshape(-1, 1)
-    rij = np.sqrt(dist_x ** 2 + dist_y ** 2)  # Distance matrix
-    NH_matrix = (rij < (2 + Rnf_int)).astype(int)  # Adjacency matrix of particles within near-field interaction distance
+    rij = np.hypot(dist_x,dist_y)  # Distance matrix
+    NH_matrix = (rij < (2 + Rnf_int)).astype(int) - np.eye(N,dtype=int)  # Adjacency matrix of particles within near-field interaction distance
     r,p = csgraph.connected_components(NH_matrix, directed=False)
-    NH_matrix -= np.eye(N,dtype=int)
     outp = omega0.copy().reshape(-1,1)
+
     # ANGULAR FREQUENCY CALCULATION
-    if NFinteract == 1:
+    if NFinteract:
         for j in range(r): # Loop through connected components      
             idx_num = []
+
             if np.count_nonzero(p == j) > 1: # If at least two elements in connected component
                 # Extract numeric indices of all disks in this component
-                idx_num = np.where(p == j)[0]
+                idx_num = np.nonzero(p == j)[0]
+
             if len(idx_num):
                 # Number of disks in current connected component
                 nrd_cc = len(idx_num)
-                
-                # # Sorted index vector needed to fill linear system matrix
-                # idx_lin = list(range(nrd_cc))
-                
                 # Linear matrix of the torque balance for given connected component
                 M = np.zeros((nrd_cc, nrd_cc))
                 
@@ -50,37 +47,35 @@ def ComputeOmega(x,y,omega0):
                 for l in range(nrd_cc):
                     # Current disk
                     curr_disk = idx_num[l]
-                    
                     # Near-field interaction neighbours for current disk
-                    nh_vec = np.where(NH_matrix[curr_disk, :] > 0)[0]
-                    
+                    nh_vec = np.nonzero(NH_matrix[curr_disk, :] > 0)[0]
                     # Pair-wise distances of disks within interaction distance
                     rij_curr = rij[curr_disk, nh_vec]
-                    
                     # Torque interactions strengths for those distances
                     tau = tau0 * taueta(rij_curr)
-                    
                     # Fill linear system matrix row for given particle
                     M[l, l] = 1 + np.sum(tau)
+
                     for n in range(len(nh_vec)):
-                        M[l, np.where(idx_num == nh_vec[n])[0]] = tau[n]
+                        M[l, np.nonzero(idx_num == nh_vec[n])[0]] = tau[n]
 
                 omega0_M = omega0[idx_num]
-                if ModOmega0 == 1:
+
+                if ModOmega0:
                     # Renormalize intrinsic rotation frequencies
                     omega0_M /= (1 + (nrd_cc / N0_damping)**2)
 
-                # Solve for the angular frequencies in this connected component
-                omega = np.linalg.solve(M, omega0_M)
-                # Add into array of all angular frequencies according to disk IDs
-                outp[idx_num] = omega.reshape(-1,1)
+                # Add angular frequencies in this connected component into array according to disk IDs
+                outp[idx_num] = np.linalg.solve(M, omega0_M).reshape(-1,1)
     return outp
 
 omega_alltime = np.array(omega0).reshape(-1,1) # Angular frequencies of all disks at all times
+
 # Compute angular frequencies at all times
 for i in range(len(time)):
     data = Pos[:,i].reshape(-1, 2)
     omega_alltime = np.column_stack((omega_alltime,ComputeOmega(data[:, 0],data[:, 1],omega0)))
+
 np.save('Data/'+simID+'/'+simID+'_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
 
 ### Plotting ###
@@ -90,6 +85,7 @@ sc = ax.scatter([], [], c=[], cmap='jet', s=10)
 cbar = plt.colorbar(sc)
 cbar.set_label('Omega')
 cbar.mappable.set_norm(LogNorm(vmin=1e-5, vmax=1))
+
 def update(frame):
     data = Pos[:,frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
