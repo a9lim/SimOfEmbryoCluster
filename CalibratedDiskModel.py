@@ -148,10 +148,6 @@ def vec_img(e):
     return np.column_stack((e[:, 0], e[:, 1], -e[:, 2]))  # Stokeslet, force- and source-dipole
 
 def disk_dynamics(t, y):
-    # Print time for progress
-    # if t % 0.001 < 0.00005:
-    #    print(t)
-
     if per_dom:
         # Periodic boundary conditions
         y %= L
