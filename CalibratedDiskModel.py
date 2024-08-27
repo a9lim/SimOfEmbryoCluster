@@ -25,7 +25,7 @@ simtimes = np.linspace(0, 2000, 1000)
 N = 7
 
 # Size of periodic box (in units of disk size)
-L = 100
+L = 20
 
 # Periodic domain?
 per_dom = False
@@ -300,7 +300,6 @@ start_time = time.time()
 ysol = solve_ivp(disk_dynamics, [simtimes[0], simtimes[-1]], Pos_init.flatten(), method="RK23", t_eval=simtimes, rtol=1e-3, atol=1e-3, vectorized=True)
 end_time = time.time()
 print("Total time: ", end_time - start_time)
-print(ysol)
 
 # Save data
 directory = os.path.dirname(sv_file+simID+'/')

@@ -78,10 +78,14 @@ for i in range(len(time)):
 
 np.save('Data/'+simID+'/'+simID+'_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
 
+# approximately reasonable scaling
+# around 100000/L^2
+size = (316/L)**2
+
 ### Plotting ###
 omega_alltime = np.abs(omega_alltime) # Absolute value for log scale
 fig, ax = plt.subplots()
-sc = ax.scatter([], [], c=[], cmap='jet', s=10)
+sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
 cbar.set_label('Omega')
 cbar.mappable.set_norm(LogNorm(vmin=1e-5, vmax=1))
@@ -90,8 +94,8 @@ def update(frame):
     data = Pos[:,frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
     sc.set_array(omega_alltime[:, frame])
-    ax.set_xlim(-20, 120)
-    ax.set_ylim(-20, 120)
+    ax.set_xlim(-L*0.5, L*1.5)
+    ax.set_ylim(-L*0.5, L*1.5)
     return sc, 
 ani = animation.FuncAnimation(fig, update, frames=range(len(time)), interval=20)
 
