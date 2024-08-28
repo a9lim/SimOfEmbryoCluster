@@ -16,16 +16,16 @@ np.random.seed()
 sv_file = 'Data/'
 
 # Simulation ID
-simID = "test"
-print("Simulation ID: " + simID)
+sim_id = "test"
+print("Simulation ID: " + sim_id)
 
-MK_video = True
+make_video = True
 
 # Simulation time for ODE model
-simtimes = np.linspace(0, 2000, 1000)
+sim_times = np.linspace(0, 2000, 1000)
 
 # Number of disks
-N = 20
+N = 31
 
 # Size of periodic box (in units of disk size)
 L = 30
@@ -34,8 +34,8 @@ L = 30
 per_dom = False
 
 # Compressing surface potential?
-Surf_Pot = False
-WellLength = 30  # Length scale of the well potential
+surf_pot = False
+well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
 fg = 3 * (3 + 1 * np.random.randn(N))  # Units: [radius^2]/second
@@ -45,7 +45,7 @@ rfg_int = 11.2  # 2*sqrt(2) is the second next nearest neighbour in hexagonal gr
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
-f0 = -3
+f0 = -6
 tau0 = 6
 
 # Minimal distance of disk boundaries from which near-field interactions start
@@ -67,7 +67,7 @@ nf_interact = True
 
 # Symmetrize the flow interactions?
 # Unsymmetrization cause noise which can drive the translational motion
-Symmetrize = False
+symmetrize = False
 
 # Far-field attraction from disks with up to two neighbours
 # (otherwirse only near-field interactions)
@@ -265,7 +265,7 @@ def disk_dynamics(t, y):
         fst_curr = fst_img[idx_img]
 
         # Collect all attractive Stokeslet flow interactions (no additional weighting)
-        if Symmetrize:
+        if symmetrize:
             u_star = 0.5 * np.sum(np.tile((fg[j] + fg[idx_img]).reshape(-1, 1), (1, 3)) * u_st(fst_curr, r_curr),
                                   axis=0)  # SYMMETRIZED
         else:
@@ -296,12 +296,12 @@ def disk_dynamics(t, y):
     dydt = u_e.flatten().T
 
     # If well curvature effect is included
-    if Surf_Pot:
+    if surf_pot:
         # Cylindrical coordinates of the disk positions
         r_pos = np.linalg.norm(pos[:, :2], axis=1)
         phi_pos = np.pi + np.arctan2(-pos[:, 1], -pos[:, 0])
         # Emulate centering effect of well curvature
-        u_pot = -WellLength ** (-2) * np.column_stack((r_pos * np.cos(phi_pos), r_pos * np.sin(phi_pos))).T
+        u_pot = -well_length ** (-2) * np.column_stack((r_pos * np.cos(phi_pos), r_pos * np.sin(phi_pos))).T
         dydt += u_pot.flatten()
 
     return dydt
@@ -310,7 +310,7 @@ def disk_dynamics(t, y):
 # Solve ODEs
 print('Simulating')
 true_start_time = time.time()
-ysol = solve_ivp(disk_dynamics, [simtimes[0], simtimes[-1]], pos_init.flatten(), method="RK23", t_eval=simtimes, rtol=1e-3, atol=1e-3, vectorized=True)
+ysol = solve_ivp(disk_dynamics, [sim_times[0], sim_times[-1]], pos_init.flatten(), method="RK23", t_eval=sim_times, rtol=1e-3, atol=1e-3, vectorized=True)
 end_time = time.time()
 print("Simulation time: ", end_time - true_start_time)
 
@@ -367,18 +367,18 @@ def compute_omega(pos):
 
 print('Rendering')
 start_time = time.time()
-omega_alltime = np.array(omega0).reshape(-1, 1)  # Angular frequencies of all disks at all times
+omega_alltime = omega0.copy().reshape(-1, 1)  # Angular frequencies of all disks at all times
 
 if per_dom:
-    Pos = ysol.y
+    pos = ysol.y
 else:
-    Pos = ysol.y % L
+    pos = ysol.y % L
 
 t = ysol.t
 
 # Compute angular frequencies at all times
 for i in range(len(t)):
-    omega_alltime = np.column_stack((omega_alltime, compute_omega(Pos[:, i].reshape(-1, 2))))
+    omega_alltime = np.column_stack((omega_alltime, compute_omega(pos[:, i].reshape(-1, 2))))
 
 # approximately reasonable scaling
 # around 100000/L^2
@@ -394,7 +394,7 @@ cbar.mappable.set_norm(LogNorm(vmin=1e-5, vmax=1))
 
 
 def update(frame):
-    data = Pos[:, frame].reshape(-1, 2)
+    data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
     sc.set_array(omega_alltime[:, frame])
     ax.set_xlim(-L*0.5, L*1.5)
@@ -409,17 +409,17 @@ print("Rendering time: ", end_time - start_time)
 # Save data
 print('Writing')
 start_time = time.time()
-os.makedirs(os.path.dirname(sv_file + simID + '/'), exist_ok=True)
+os.makedirs(os.path.dirname(sv_file + sim_id + '/'), exist_ok=True)
 
-np.save(sv_file + simID + '/' + simID + '_pos.npy', Pos)
-np.save(sv_file + simID + '/' + simID + '_time.npy', t)
-np.save(sv_file + simID + '/' + simID + '_omega0.npy', omega0)
-np.save(sv_file + simID + '/' + simID + '_params.npy', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact])
-np.save(sv_file + simID + '/' + simID + '_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
+np.save(sv_file + sim_id + '/' + sim_id + '_pos.npy', pos)
+np.save(sv_file + sim_id + '/' + sim_id + '_time.npy', t)
+np.save(sv_file + sim_id + '/' + sim_id + '_omega0.npy', omega0)
+np.save(sv_file + sim_id + '/' + sim_id + '_params.npy', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact])
+np.save(sv_file + sim_id + '/' + sim_id + '_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
 
 # Save animation as video
-if MK_video:
-    ani.save(sv_file + simID + '/' + simID + '_animation.mp4', fps=30, codec='hevc_nvenc')
+if make_video:
+    ani.save(sv_file + sim_id + '/' + sim_id + '_animation.mp4', fps=30, codec='hevc_nvenc')
 end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
