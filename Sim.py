@@ -13,7 +13,7 @@ from matplotlib.colors import LogNorm
 np.random.seed()
 
 # Path to save all data
-sv_file = 'Data/'
+data_dir = 'Data/'
 
 # Simulation ID
 sim_id = "test"
@@ -409,17 +409,17 @@ print("Rendering time: ", end_time - start_time)
 # Save data
 print('Writing')
 start_time = time.time()
-os.makedirs(os.path.dirname(sv_file + sim_id + '/'), exist_ok=True)
+os.makedirs(os.path.dirname(data_dir + sim_id + '/'), exist_ok=True)
 
-np.save(sv_file + sim_id + '/' + sim_id + '_pos.npy', pos)
-np.save(sv_file + sim_id + '/' + sim_id + '_time.npy', t)
-np.save(sv_file + sim_id + '/' + sim_id + '_omega0.npy', omega0)
-np.save(sv_file + sim_id + '/' + sim_id + '_params.npy', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact])
-np.save(sv_file + sim_id + '/' + sim_id + '_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
+np.save(data_dir + sim_id + '/' + sim_id + '_pos.npy', pos)
+np.save(data_dir + sim_id + '/' + sim_id + '_time.npy', t)
+np.save(data_dir + sim_id + '/' + sim_id + '_omega0.npy', omega0)
+np.save(data_dir + sim_id + '/' + sim_id + '_params.npy', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact])
+np.save(data_dir + sim_id + '/' + sim_id + '_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
 
 # Save animation as video
 if make_video:
-    ani.save(sv_file + sim_id + '/' + sim_id + '_animation.mp4', fps=30, codec='hevc_nvenc')
+    ani.save(data_dir + sim_id + '/' + sim_id + '_animation.mp4', fps=30, codec='hevc_nvenc')
 end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
