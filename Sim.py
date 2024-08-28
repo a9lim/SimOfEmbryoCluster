@@ -135,7 +135,7 @@ def u_st(f, r):
 # 1/r^12 potential repulsion between midpoints -> 1/r^13 force
 # (written \vec{r}/r^14 because of vec(r) in nominator!!)
 @nb.njit
-def Frep(r):
+def frep(r):
     return 12 * r / norm2d(r, 1).reshape(-1, 1) ** 14
 
 
@@ -166,11 +166,10 @@ def disk_dynamics(t, y):
     # Input vector y contains for each disk 2D position and 3D orientation
     # [x1; y1; x2; y2; ... xN; yN]
     # Extract and format positions as needed for flow functions
-    Pos3D = np.column_stack((y[:2 * N].reshape((N, 2)), -h * np.ones(N)))
-    # Signed distance matrices r_i - r^0_i where flows from
-    # singularities placed at r^0_i are evaluated at r_i
-    dist_x = Pos3D[:, 0].reshape(1, -1) - Pos3D[:, 0].reshape(-1, 1)
-    dist_y = Pos3D[:, 1].reshape(1, -1) - Pos3D[:, 1].reshape(-1, 1)
+    pos = np.column_stack((y[:2 * N].reshape((N, 2)), -h * np.ones(N)))
+    # Signed distance matrices r_i - r^0_i where flows from singularities placed at r^0_i are evaluated at r_i
+    dist_x = pos[:, 0].reshape(1, -1) - pos[:, 0].reshape(-1, 1)
+    dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Stokeslet force orientation (DON'T CHANGE FOR DISK MODEL)
     grav = np.tile(grav_vec, (N, 1))
     grav /= np.linalg.norm(grav, axis=1).reshape(-1, 1)
@@ -178,13 +177,13 @@ def disk_dynamics(t, y):
     fst_img = vec_img(grav)
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
-    NH_matrix = (rij < (2 + Rnf_int)).astype(int) - np.eye(N,dtype=int)  # Adjacency matrix of particles within near-field interaction distance
-    r, p = csgraph.connected_components(NH_matrix, directed=False)
+    nh_matrix = (rij < (2 + Rnf_int)).astype(int) - np.eye(N, dtype=int)  # Adjacency matrix of particles within near-field interaction distance
+    r, p = csgraph.connected_components(nh_matrix, directed=False)
     omega_all = omega0.copy()
 
     if SelectFarField:
         # Assume all particles participate in far-field interactions
-        idx_FF = np.ones(N, dtype=bool)
+        idx_ff = np.ones(N, dtype=bool)
 
     # ANGULAR FREQUENCY CALCULATION
     if NFinteract:
@@ -199,43 +198,43 @@ def disk_dynamics(t, y):
                 # Number of disks in current connected component
                 nrd_cc = len(idx_num)
                 # Linear matrix of the torque balance for given connected component
-                M = np.zeros((nrd_cc, nrd_cc))
+                m = np.zeros((nrd_cc, nrd_cc))
 
                 # Loop through those disks to build linear system
                 for l in range(nrd_cc):
                     # Current disk
                     curr_disk = idx_num[l]
                     # Near-field interaction neighbours for current disk
-                    nh_vec = np.nonzero(NH_matrix[curr_disk, :] > 0)[0]
+                    nh_vec = np.nonzero(nh_matrix[curr_disk, :] > 0)[0]
                     # Torque interactions strengths for pair-wise distances of disks within interaction distance
                     tau = tau0 * taueta(rij[curr_disk, nh_vec])
                     # Fill linear system matrix row for given particle
-                    M[l, l] = 1 + np.sum(tau)
+                    m[l, l] = 1 + np.sum(tau)
 
                     for n in range(len(nh_vec)):
-                        M[l, np.nonzero(idx_num == nh_vec[n])[0]] = tau[n]
+                        m[l, np.nonzero(idx_num == nh_vec[n])[0]] = tau[n]
 
-                omega0_M = omega0[idx_num]
+                omega0_m = omega0[idx_num]
 
                 if ModOmega0:
                     # Renormalize intrinsic rotation frequencies
-                    omega0_M /= (1 + (nrd_cc / N0_damping) ** 2)
+                    omega0_m /= (1 + (nrd_cc / N0_damping) ** 2)
 
                 # Add angular frequencies in this connected component into array according to disk IDs
-                omega_all[idx_num] = np.linalg.solve(M, omega0_M)
+                omega_all[idx_num] = np.linalg.solve(m, omega0_m)
 
                 if SelectFarField:
                     # If these disks belong to a group with more than 3 disks
                     # remove those indices from the far-field interaction list
                     if len(idx_num) > 3:
-                        idx_FF[idx_num] = False
+                        idx_ff[idx_num] = False
 
     # Sum up all flow contributions that affect a given disk
     # Cross-product vectors for near-field force interactions
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        RotForce_dir_x = dist_y / rij
-        RotForce_dir_y = -dist_x / rij
+        rot_force_dir_x = dist_y / rij
+        rot_force_dir_y = -dist_x / rij
 
     u_e = np.zeros((N, 2))  # Initiate translational velocities array
 
@@ -245,7 +244,7 @@ def disk_dynamics(t, y):
             idx_lat = np.ones(N, dtype=bool)
             idx_lat[j] = False
 
-            if not (SelectFarField and idx_FF[j]):
+            if not (SelectFarField and idx_ff[j]):
                 # Find all disks further than a distance away
                 # and exclude them from Stokeslet interactions
                 idx_far = rij[:, j] > RFg_int
@@ -279,19 +278,19 @@ def disk_dynamics(t, y):
             # Same neighbourhood as Stokeslet interaction
             r_curr_ster = r_curr.copy()
             r_curr_ster[:, 2] = 0
-            u_rep = 0.5 * np.sum((Frep_str[j] + Frep_str[idx_lat]).reshape(-1, 1) * Frep(r_curr_ster), axis=0)
+            u_rep = 0.5 * np.sum((Frep_str[j] + Frep_str[idx_lat]).reshape(-1, 1) * frep(r_curr_ster), axis=0)
             u_e[j] += u_rep[:2]
 
         # Contributions from transverse force interactions
-        idx_neighb = NH_matrix[j, :] > 0  # Neighbour-indices (no diagonals!)
+        idx_neighb = nh_matrix[j, :] > 0  # Neighbour-indices (no diagonals!)
 
         if np.sum(idx_neighb) != 0:
             feta_curr = feta(rij[j, idx_neighb])
             # Build omega array that can be used for rotation force summation
             omega_full = np.tile(omega_all[j], (np.sum(idx_neighb), 1)).T + omega_all[idx_neighb]
             # Sum up all transverse force contributions for given disks
-            u_e[j, 0] += f0 * np.sum(feta_curr * omega_full * RotForce_dir_x[j, idx_neighb])
-            u_e[j, 1] += f0 * np.sum(feta_curr * omega_full * RotForce_dir_y[j, idx_neighb])
+            u_e[j, 0] += f0 * np.sum(feta_curr * omega_full * rot_force_dir_x[j, idx_neighb])
+            u_e[j, 1] += f0 * np.sum(feta_curr * omega_full * rot_force_dir_y[j, idx_neighb])
 
     # Fill RHS output vector of ODE system
     dydt = u_e.flatten().T
@@ -299,10 +298,10 @@ def disk_dynamics(t, y):
     # If well curvature effect is included
     if Surf_Pot:
         # Cylindrical coordinates of the disk positions
-        R_pos = np.linalg.norm(Pos3D[:, :2], axis=1)
-        Phi_pos = np.pi + np.arctan2(-Pos3D[:, 1], -Pos3D[:, 0])
+        r_pos = np.linalg.norm(pos[:, :2], axis=1)
+        phi_pos = np.pi + np.arctan2(-pos[:, 1], -pos[:, 0])
         # Emulate centering effect of well curvature
-        u_pot = -WellLength ** (-2) * np.column_stack((R_pos * np.cos(Phi_pos), R_pos * np.sin(Phi_pos))).T
+        u_pot = -WellLength ** (-2) * np.column_stack((r_pos * np.cos(phi_pos), r_pos * np.sin(phi_pos))).T
         dydt += u_pot.flatten()
 
     return dydt
@@ -310,22 +309,22 @@ def disk_dynamics(t, y):
 
 # Solve ODEs
 print('Simulating')
-start_time = time.time()
+true_start_time = time.time()
 ysol = solve_ivp(disk_dynamics, [simtimes[0], simtimes[-1]], Pos_init.flatten(), method="RK23", t_eval=simtimes,
                  rtol=1e-3, atol=1e-3, vectorized=True)
 end_time = time.time()
-print("Simulation time: ", end_time - start_time)
+print("Simulation time: ", end_time - true_start_time)
 
-def ComputeOmega(pos,omega0):
-    # Signed distance matrices r_i - r^0_i where flows from
-    # singularities placed at r^0_i are evaluated at r_i
+
+def compute_omega(pos):
+    # Signed distance matrices r_i - r^0_i where flows from singularities placed at r^0_i are evaluated at r_i
     dist_x = pos[:, 0].reshape(1, -1) - pos[:, 0].reshape(-1, 1)
     dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
-    NH_matrix = (rij < (2 + Rnf_int)).astype(int) - np.eye(N,dtype=int)  # Adjacency matrix of particles within near-field interaction distance
-    r, p = csgraph.connected_components(NH_matrix, directed=False)
-    outp = omega0.copy().reshape(-1,1)
+    nh_matrix = (rij < (2 + Rnf_int)).astype(int) - np.eye(N, dtype=int)  # Adjacency matrix of particles within near-field interaction distance
+    r, p = csgraph.connected_components(nh_matrix, directed=False)
+    outp = omega0.copy().reshape(-1, 1)
 
     # ANGULAR FREQUENCY CALCULATION
     if NFinteract:
@@ -340,31 +339,32 @@ def ComputeOmega(pos,omega0):
                 # Number of disks in current connected component
                 nrd_cc = len(idx_num)
                 # Linear matrix of the torque balance for given connected component
-                M = np.zeros((nrd_cc, nrd_cc))
+                m = np.zeros((nrd_cc, nrd_cc))
 
                 # Loop through those disks to build linear system
                 for l in range(nrd_cc):
                     # Current disk
                     curr_disk = idx_num[l]
                     # Near-field interaction neighbours for current disk
-                    nh_vec = np.nonzero(NH_matrix[curr_disk, :] > 0)[0]
+                    nh_vec = np.nonzero(nh_matrix[curr_disk, :] > 0)[0]
                     # Torque interactions strengths for pair-wise distances of disks within interaction distance
                     tau = tau0 * taueta(rij[curr_disk, nh_vec])
                     # Fill linear system matrix row for given particle
-                    M[l, l] = 1 + np.sum(tau)
+                    m[l, l] = 1 + np.sum(tau)
 
                     for n in range(len(nh_vec)):
-                        M[l, np.nonzero(idx_num == nh_vec[n])[0]] = tau[n]
+                        m[l, np.nonzero(idx_num == nh_vec[n])[0]] = tau[n]
 
-                omega0_M = omega0[idx_num]
+                omega0_m = omega0[idx_num]
 
                 if ModOmega0:
                     # Renormalize intrinsic rotation frequencies
-                    omega0_M /= (1 + (nrd_cc / N0_damping) ** 2)
+                    omega0_m /= (1 + (nrd_cc / N0_damping) ** 2)
 
                 # Add angular frequencies in this connected component into array according to disk IDs
-                outp[idx_num] = np.linalg.solve(M, omega0_M).reshape(-1,1)
+                outp[idx_num] = np.linalg.solve(m, omega0_m).reshape(-1, 1)
     return outp
+
 
 print('Rendering')
 start_time = time.time()
@@ -379,7 +379,7 @@ t = ysol.t
 
 # Compute angular frequencies at all times
 for i in range(len(t)):
-    omega_alltime = np.column_stack((omega_alltime, ComputeOmega(Pos[:, i].reshape(-1, 2), omega0)))
+    omega_alltime = np.column_stack((omega_alltime, compute_omega(Pos[:, i].reshape(-1, 2))))
 
 # approximately reasonable scaling
 # around 100000/L^2
@@ -395,7 +395,7 @@ cbar.mappable.set_norm(LogNorm(vmin=1e-5, vmax=1))
 
 
 def update(frame):
-    data = Pos[:,frame].reshape(-1, 2)
+    data = Pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
     sc.set_array(omega_alltime[:, frame])
     ax.set_xlim(-L*0.5, L*1.5)
@@ -420,8 +420,9 @@ np.save(sv_file + simID + '/' + simID + '_omega_alltime.npy', np.delete(omega_al
 
 # Save animation as video
 if MK_video:
-    ani.save('Data/'+simID+'/'+simID+'_animation.mp4', writer=animation.writers['ffmpeg'](fps=15, metadata=dict(artist='Me'), bitrate=1800))
-end_time = time.time()
-print("Write time: ", end_time - start_time)
+    ani.save('Data/'+simID+'/'+simID+'_animation.mp4', writer=animation.writers['ffmpeg'](fps=15, metadata=dict(artist='Me'), bitrate=1800, codec='hevc_nvenc'))
+true_end_time = time.time()
+print("Write time: ", true_end_time - start_time)
+print("Total time: ", true_end_time - true_start_time)
 
 plt.show()
