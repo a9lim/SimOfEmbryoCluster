@@ -420,7 +420,7 @@ np.save(sv_file + simID + '/' + simID + '_omega_alltime.npy', np.delete(omega_al
 
 # Save animation as video
 if MK_video:
-    ani.save('Data/'+simID+'/'+simID+'_animation.mp4', writer=animation.writers['ffmpeg'](fps=15, metadata=dict(artist='Me'), bitrate=1800, codec='hevc_nvenc'))
+    ani.save(sv_file + simID + '/' + simID + '_animation.mp4', fps=15, codec='hevc_nvenc')
 true_end_time = time.time()
 print("Write time: ", true_end_time - start_time)
 print("Total time: ", true_end_time - true_start_time)
