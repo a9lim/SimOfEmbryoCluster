@@ -16,7 +16,7 @@ np.random.seed()
 data_dir = 'Data/'
 
 # Simulation ID
-sim_id = "test"
+sim_id = "sim"
 print("Simulation ID: " + sim_id)
 
 make_video = True
@@ -25,10 +25,10 @@ make_video = True
 sim_times = np.linspace(0, 1500, 1000)
 
 # Number of disks
-N = 20
+N = 35
 
 # Size of periodic box (in units of disk size)
-L = 30
+L = 35
 
 # Periodic domain?
 per_dom = False
@@ -38,15 +38,19 @@ surf_pot = False
 well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
-fg = 1 * (3 + 1 * np.random.randn(N))  # Units: [radius^2]/second
-
-# Maximum interaction distance for attractive Stokeslet interaction
-rfg_int = 11.2  # 2*sqrt(2) is the second next nearest neighbour in hexagonal grid
+fg0 = 9
+fg = fg0 + (fg0/3) * np.random.randn(N)  # Units: [radius^2]/second
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
-f0 = -3
+f0 = 9
 tau0 = 3
+
+sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
+f0 = -f0
+
+# Maximum interaction distance for attractive Stokeslet interaction
+rfg_int = 11.2  # 2*sqrt(2) is the second next nearest neighbour in hexagonal grid
 
 # Minimal distance of disk boundaries from which near-field interactions start
 rnf_int = 5.6
@@ -382,7 +386,7 @@ for i in range(len(t)):
 
 # approximately reasonable scaling
 # around 100000/L^2
-size = (320/L)**2
+size = (512/L)**2
 
 ### Plotting ###
 omega_alltime = np.abs(omega_alltime)  # Absolute value for log scale
@@ -397,8 +401,8 @@ def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
     sc.set_array(omega_alltime[:, frame])
-    ax.set_xlim(-L*0.5, L*1.5)
-    ax.set_ylim(-L*0.5, L*1.5)
+    ax.set_xlim(-L*0.2, L*1.2)
+    ax.set_ylim(-L*0.2, L*1.2)
     return sc,
 
 
