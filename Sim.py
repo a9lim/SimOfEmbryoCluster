@@ -22,10 +22,10 @@ print("Simulation ID: " + sim_id)
 make_video = True
 
 # Simulation time for ODE model
-sim_times = np.linspace(0, 2000, 1000)
+sim_times = np.linspace(0, 1500, 1000)
 
 # Number of disks
-N = 31
+N = 20
 
 # Size of periodic box (in units of disk size)
 L = 30
@@ -38,15 +38,15 @@ surf_pot = False
 well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
-fg = 3 * (3 + 1 * np.random.randn(N))  # Units: [radius^2]/second
+fg = 1 * (3 + 1 * np.random.randn(N))  # Units: [radius^2]/second
 
 # Maximum interaction distance for attractive Stokeslet interaction
 rfg_int = 11.2  # 2*sqrt(2) is the second next nearest neighbour in hexagonal grid
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
-f0 = -6
-tau0 = 6
+f0 = -3
+tau0 = 3
 
 # Minimal distance of disk boundaries from which near-field interactions start
 rnf_int = 5.6
