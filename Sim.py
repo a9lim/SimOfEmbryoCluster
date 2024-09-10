@@ -25,10 +25,10 @@ make_video = True
 sim_times = np.linspace(0, 1500, 1000)
 
 # Number of disks
-N = 35
+N = 40
 
 # Size of periodic box (in units of disk size)
-L = 35
+L = 30
 
 # Periodic domain?
 per_dom = False
@@ -38,13 +38,13 @@ surf_pot = False
 well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
-fg0 = 9
+fg0 = 6
 fg = fg0 + (fg0/3) * np.random.randn(N)  # Units: [radius^2]/second
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
-f0 = 9
-tau0 = 3
+f0 = 6
+tau0 = 9
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 f0 = -f0
@@ -56,7 +56,7 @@ rfg_int = 11.2  # 2*sqrt(2) is the second next nearest neighbour in hexagonal gr
 rnf_int = 5.6
 
 # Single disk angular frequency (= time-scale)
-omega0 = 0.02 * 2 * np.pi * (0.72 + 0.17 * np.random.randn(N))
+omega0 = 0.03 * 2 * np.pi * (0.72 + 0.17 * np.random.randn(N))
 
 # Flow interactions between disks
 # F: each disk will only interact with its image
@@ -415,15 +415,16 @@ print('Writing')
 start_time = time.time()
 os.makedirs(os.path.dirname(data_dir + sim_id + '/'), exist_ok=True)
 
-np.save(data_dir + sim_id + '/' + sim_id + '_pos.npy', pos)
-np.save(data_dir + sim_id + '/' + sim_id + '_time.npy', t)
-np.save(data_dir + sim_id + '/' + sim_id + '_omega0.npy', omega0)
-np.save(data_dir + sim_id + '/' + sim_id + '_params.npy', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact])
-np.save(data_dir + sim_id + '/' + sim_id + '_omega_alltime.npy', np.delete(omega_alltime, 0, 1))
+np.savetxt(data_dir + sim_id + '/' + sim_id + '_pos.csv', pos, delimiter=',')
+np.savetxt(data_dir + sim_id + '/' + sim_id + '_time.csv', t, delimiter=',')
+np.savetxt(data_dir + sim_id + '/' + sim_id + '_omega0.csv', omega0, delimiter=',')
+np.savetxt(data_dir + sim_id + '/' + sim_id + '_params.csv', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact], delimiter=',')
+np.savetxt(data_dir + sim_id + '/' + sim_id + '_omega_alltime.csv', np.delete(omega_alltime, 0, 1), delimiter=',')
 
 # Save animation as video
+# Format here
 if make_video:
-    ani.save(data_dir + sim_id + '/' + sim_id + '_animation.mp4', fps=30, codec='hevc_nvenc')
+    ani.save(data_dir + sim_id + '/' + sim_id + '_animation.gif', fps=30, codec='hevc_nvenc')
 end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
