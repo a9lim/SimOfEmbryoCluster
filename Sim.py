@@ -16,19 +16,19 @@ np.random.seed()
 data_dir = 'Data/'
 
 # Simulation ID
-sim_id = "sim"
+sim_id = "bigSim"
 print("Simulation ID: " + sim_id)
 
 make_video = True
 
 # Simulation time for ODE model
-sim_times = np.linspace(0, 1500, 1000)
+sim_times = np.linspace(0, 5000, 2500)
 
 # Number of disks
-N = 40
+N = 20
 
 # Size of periodic box (in units of disk size)
-L = 30
+L = 20
 
 # Periodic domain?
 per_dom = False
@@ -43,8 +43,8 @@ fg = fg0 + (fg0/3) * np.random.randn(N)  # Units: [radius^2]/second
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
-f0 = 6
-tau0 = 9
+f0 = 0.035
+tau0 =0.14
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 f0 = -f0
@@ -374,9 +374,9 @@ start_time = time.time()
 omega_alltime = omega0.copy().reshape(-1, 1)  # Angular frequencies of all disks at all times
 
 if per_dom:
-    pos = ysol.y
-else:
     pos = ysol.y % L
+else:
+    pos = ysol.y
 
 t = ysol.t
 
@@ -395,14 +395,14 @@ sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
 cbar.set_label('Omega')
 cbar.mappable.set_norm(LogNorm(vmin=1e-5, vmax=1))
+ax.set_xlim(-L * 0.2, L * 1.2)
+ax.set_ylim(-L * 0.2, L * 1.2)
 
 
 def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
     sc.set_array(omega_alltime[:, frame])
-    ax.set_xlim(-L*0.2, L*1.2)
-    ax.set_ylim(-L*0.2, L*1.2)
     return sc,
 
 
