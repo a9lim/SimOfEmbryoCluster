@@ -4,7 +4,7 @@ import warnings
 import time
 import numba as nb
 import os
-from scipy.sparse import csgraph
+from scipy import sparse
 from scipy.integrate import solve_ivp
 from matplotlib import animation
 from matplotlib.colors import LogNorm
@@ -38,13 +38,13 @@ surf_pot = False
 well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
-fg0 = 6
+fg0 = 320
 fg = fg0 + (fg0/3) * np.random.randn(N)  # Units: [radius^2]/second
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
 f0 = 0.035
-tau0 =0.14
+tau0 = 0.14
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 f0 = -f0
@@ -182,7 +182,7 @@ def disk_dynamics(t, y):
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
     nh_matrix = (rij < (2 + rnf_int)).astype(int) - np.eye(N, dtype=int)  # Adjacency matrix of particles within near-field interaction distance
-    r, p = csgraph.connected_components(nh_matrix, directed=False)
+    r, p = sparse.csgraph.connected_components(nh_matrix, directed=False)
     omega_all = omega0.copy()
 
     if select_far_field:
@@ -319,14 +319,18 @@ end_time = time.time()
 print("Simulation time: ", end_time - true_start_time)
 
 
-def compute_omega(pos):
+def compute_rij(pos):
     # Signed distance matrices r_i - r^0_i where flows from singularities placed at r^0_i are evaluated at r_i
     dist_x = pos[:, 0].reshape(1, -1) - pos[:, 0].reshape(-1, 1)
     dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Determine angular frequency of each disk
-    rij = np.hypot(dist_x, dist_y)  # Distance matrix
+    return np.hypot(dist_x, dist_y)  # Distance matrix
+
+
+def compute_omega(pos):
+    rij = compute_rij(pos)
     nh_matrix = (rij < (2 + rnf_int)).astype(int) - np.eye(N, dtype=int)  # Adjacency matrix of particles within near-field interaction distance
-    r, p = csgraph.connected_components(nh_matrix, directed=False)
+    r, p = sparse.csgraph.connected_components(nh_matrix, directed=False)
     outp = omega0.copy().reshape(-1, 1)
 
     # ANGULAR FREQUENCY CALCULATION
@@ -369,6 +373,11 @@ def compute_omega(pos):
     return outp
 
 
+def compute_neighbors(pos):
+    nh_matrix = (compute_rij(pos) < 3.5).astype(int) - np.eye(N, dtype=int)
+    return sparse.lil_array(nh_matrix).rows
+
+
 print('Rendering')
 start_time = time.time()
 omega_alltime = omega0.copy().reshape(-1, 1)  # Angular frequencies of all disks at all times
@@ -380,9 +389,21 @@ else:
 
 t = ysol.t
 
+#horse = np.zeros(N)
+#st = 500
+
+#r = [sparse.lil_array((N, 1)).rows]
+#oldr = [sparse.lil_array((N, 1)).rows]
+
 # Compute angular frequencies at all times
 for i in range(len(t)):
-    omega_alltime = np.column_stack((omega_alltime, compute_omega(pos[:, i].reshape(-1, 2))))
+    data = pos[:, i].reshape(-1, 2)
+    omega_alltime = np.column_stack((omega_alltime, compute_omega(data)))
+    #oldr[0] = r[0]
+    #r[0] = compute_neighbors(data)
+    #for j in range(N):
+    #    if not np.array_equal(r[0][j], oldr[0][j]):
+    #        horse[j] += 1
 
 # approximately reasonable scaling
 # around 100000/L^2
@@ -420,6 +441,7 @@ np.savetxt(data_dir + sim_id + '/' + sim_id + '_time.csv', t, delimiter=',')
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_omega0.csv', omega0, delimiter=',')
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_params.csv', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact], delimiter=',')
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_omega_alltime.csv', np.delete(omega_alltime, 0, 1), delimiter=',')
+#np.savetxt(data_dir + sim_id + '/' + sim_id + '_horse.csv', horse, delimiter=',')
 
 # Save animation as video
 # Format here

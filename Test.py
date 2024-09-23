@@ -31,7 +31,7 @@ def compute_omega(pos):
     dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
-    nh_matrix = (rij < 3.5).astype(int)
+    nh_matrix = (rij < 3.5).astype(int) - np.eye(N, dtype=int)
     return sparse.lil_array(nh_matrix).rows
 
 
@@ -43,14 +43,14 @@ fig, ax = plt.subplots()
 sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
 cbar.set_label('Swaps')
-cbar.mappable.set_norm(Normalize(vmin=1, vmax=500))
+cbar.mappable.set_norm(Normalize(vmin=1, vmax=250))
 ax.set_xlim(-L * 0.2, L * 1.2)
 ax.set_ylim(-L * 0.2, L * 1.2)
 
 horse = np.zeros(N)
 
-r = [sparse.lil_array((100, 1)).rows]
-oldr = [sparse.lil_array((100, 1)).rows]
+r = [sparse.lil_array((N, 1)).rows]
+oldr = [r[0].copy()]
 st = 500
 
 
@@ -63,7 +63,7 @@ def update(frame):
         if not np.array_equal(r[0][i], oldr[0][i]):
             horse[i] += 1
     sc.set_array(horse)
-    return sc
+    return sc,
 
 
 print('Rendering')
