@@ -22,10 +22,10 @@ print("Simulation ID: " + sim_id)
 make_video = True
 
 # Simulation time for ODE model
-sim_times = np.linspace(0, 5000, 2500)
+sim_times = np.linspace(0, 2000, 1000)
 
 # Number of disks
-N = 20
+N = 10
 
 # Size of periodic box (in units of disk size)
 L = 20
@@ -52,7 +52,7 @@ f0 = -f0
 # Maximum interaction distance for attractive Stokeslet interaction
 rfg_int = 11.2  # 2*sqrt(2) is the second next nearest neighbour in hexagonal grid
 
-# Minimal distance of disk boundaries from which near-field interactions start
+# Maximum interaction distance for rotational near-field interaction
 rnf_int = 5.6
 
 # Single disk angular frequency (= time-scale)
@@ -82,7 +82,7 @@ mod_omega0 = True
 n0_damping = 80
 
 ###### GRAVITY (=Stokeslet direction) (DON'T CHANGE IN DISK MODEL) ######
-grav_vec = np.array([0, 0, -1], dtype=float)
+grav_vec = np.array((0, 0, -1), dtype=float)
 grav_vec /= np.linalg.norm(grav_vec)
 
 # Distance of flow singularity below the surface
@@ -314,7 +314,7 @@ def disk_dynamics(t, y):
 # Solve ODEs
 print('Simulating')
 true_start_time = time.time()
-ysol = solve_ivp(disk_dynamics, [sim_times[0], sim_times[-1]], pos_init.flatten(), method="RK23", t_eval=sim_times, rtol=1e-3, atol=1e-3, vectorized=True)
+ysol = solve_ivp(disk_dynamics, (sim_times[0], sim_times[-1]), pos_init.flatten(), method="RK23", t_eval=sim_times, rtol=1e-3, atol=1e-3, vectorized=True)
 end_time = time.time()
 print("Simulation time: ", end_time - true_start_time)
 
@@ -373,11 +373,6 @@ def compute_omega(pos):
     return outp
 
 
-def compute_neighbors(pos):
-    nh_matrix = (compute_rij(pos) < 3.5).astype(int) - np.eye(N, dtype=int)
-    return sparse.lil_array(nh_matrix).rows
-
-
 print('Rendering')
 start_time = time.time()
 omega_alltime = omega0.copy().reshape(-1, 1)  # Angular frequencies of all disks at all times
@@ -389,21 +384,13 @@ else:
 
 t = ysol.t
 
-#horse = np.zeros(N)
-#st = 500
-
-#r = [sparse.lil_array((N, 1)).rows]
-#oldr = [sparse.lil_array((N, 1)).rows]
+r = [sparse.lil_array((N, 1)).rows]
+oldr = [sparse.lil_array((N, 1)).rows]
 
 # Compute angular frequencies at all times
 for i in range(len(t)):
     data = pos[:, i].reshape(-1, 2)
     omega_alltime = np.column_stack((omega_alltime, compute_omega(data)))
-    #oldr[0] = r[0]
-    #r[0] = compute_neighbors(data)
-    #for j in range(N):
-    #    if not np.array_equal(r[0][j], oldr[0][j]):
-    #        horse[j] += 1
 
 # approximately reasonable scaling
 # around 100000/L^2
@@ -439,9 +426,8 @@ os.makedirs(os.path.dirname(data_dir + sim_id + '/'), exist_ok=True)
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_pos.csv', pos, delimiter=',')
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_time.csv', t, delimiter=',')
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_omega0.csv', omega0, delimiter=',')
-np.savetxt(data_dir + sim_id + '/' + sim_id + '_params.csv', [N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact], delimiter=',')
+np.savetxt(data_dir + sim_id + '/' + sim_id + '_params.csv', (N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact), delimiter=',')
 np.savetxt(data_dir + sim_id + '/' + sim_id + '_omega_alltime.csv', np.delete(omega_alltime, 0, 1), delimiter=',')
-#np.savetxt(data_dir + sim_id + '/' + sim_id + '_horse.csv', horse, delimiter=',')
 
 # Save animation as video
 # Format here

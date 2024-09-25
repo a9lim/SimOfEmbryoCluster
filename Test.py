@@ -1,7 +1,7 @@
 import numpy as np
 import time
 from matplotlib import animation
-from matplotlib.colors import LogNorm, NoNorm, Normalize
+from matplotlib.colors import Normalize
 from scipy import sparse
 import matplotlib.pyplot as plt
 
@@ -20,7 +20,8 @@ sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 pos = np.loadtxt(data_dir + sim_id + '/' + sim_id + '_pos.csv', delimiter=',')
 t = np.loadtxt(data_dir + sim_id + '/' + sim_id + '_time.csv', delimiter=',')
 omega0 = np.loadtxt(data_dir + sim_id + '/' + sim_id + '_omega0.csv', delimiter=',')
-[N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact] = np.loadtxt(data_dir + sim_id + '/' + sim_id + '_params.csv', delimiter=',')
+omega_alltime = np.loadtxt(data_dir + sim_id + '/' + sim_id + '_omega_alltime.csv', delimiter=',')
+(N, L, rnf_int, tau0, mod_omega0, n0_damping, nf_interact) = np.loadtxt(data_dir + sim_id + '/' + sim_id + '_params.csv', delimiter=',')
 N = int(N)
 L = int(L)
 
@@ -42,27 +43,54 @@ size = (512/L)**2
 fig, ax = plt.subplots()
 sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
-cbar.set_label('Swaps')
+cbar.set_label('Neighbor Exchanges')
 cbar.mappable.set_norm(Normalize(vmin=1, vmax=250))
 ax.set_xlim(-L * 0.2, L * 1.2)
 ax.set_ylim(-L * 0.2, L * 1.2)
 
 horse = np.zeros(N)
 
-r = [sparse.lil_array((N, 1)).rows]
-oldr = [r[0].copy()]
+r = sparse.lil_array((N, 1)).rows
+oldr = r[0].copy()
 st = 500
+fatglorp = []
 
+for j in range(len(t)):
+    smallhorse = np.zeros(N)
+    glorp = [[]]
+    data = pos[:, j].reshape(-1, 2)
+    oldr = r
+    r = compute_omega(data)
+    for i in range(N):
+        if (r[i] != oldr[i]).count_nonzero() == 0:
+            smallhorse[i] += 1
+    I = list(range(N))
+    for i in I:
+        if len(r[i]) < 6:
+            glorp.append(i)
+    for i in glorp:
+        I.remove(i)
+    k = 1
+    while len(I) > 0:
+        glorp.append([])
+        for i in I:
+            if set(r[i]).intersection(set(glorp[k - 1])):
+                glorp[k].append(i)
+        for i in glorp[k]:
+            I.remove(i)
+        k += 1
+    snip = []
+    for i in range(len(glorp)):
+        for k in glorp[i]:
+            snip[i] += omega_alltime[k, j]
+        snip[i] /= len(glorp[i])
+    fatglorp = np.column_stack((fatglorp, snip))
+    horse = np.column_stack((horse, smallhorse))
 
 def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
-    oldr[0] = r[0]
-    r[0] = compute_omega(data)
-    for i in range(N):
-        if not np.array_equal(r[0][i], oldr[0][i]):
-            horse[i] += 1
-    sc.set_array(horse)
+    sc.set_array(horse[:, frame])
     return sc,
 
 
