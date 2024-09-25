@@ -32,7 +32,7 @@ def compute_omega(pos):
     dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
-    nh_matrix = (rij < 3.5).astype(int) - np.eye(N, dtype=int)
+    nh_matrix = (rij < 4).astype(int) - np.eye(N, dtype=int)
     return sparse.lil_array(nh_matrix).rows
 
 
@@ -44,7 +44,7 @@ fig, ax = plt.subplots()
 sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
 cbar.set_label('Neighbor Exchanges')
-cbar.mappable.set_norm(Normalize(vmin=1, vmax=250))
+cbar.mappable.set_norm(Normalize(vmin=0, vmax=7))
 ax.set_xlim(-L * 0.2, L * 1.2)
 ax.set_ylim(-L * 0.2, L * 1.2)
 
@@ -52,12 +52,11 @@ horse = np.zeros(N)
 
 r = sparse.lil_array((N, 1)).rows
 oldr = r[0].copy()
-st = 500
+st = 700
 fatglorp = np.zeros(7)
 
 for j in range(st,len(t)):
     smallhorse = np.zeros(N)
-    glorp = [[]]
     data = pos[:, j].reshape(-1, 2)
     oldr = r
     r = compute_omega(data)
@@ -65,8 +64,9 @@ for j in range(st,len(t)):
         if r[i] != oldr[i]:
             smallhorse[i] = 1
     I = list(range(N))
+    glorp = [[]]
     for i in I:
-        if len(r[i]) < 5:
+        if len(r[i]) < 6:
             glorp[0].append(i)
     for i in glorp[0]:
         I.remove(i)
@@ -86,6 +86,30 @@ for j in range(st,len(t)):
     horse += smallhorse
 
 
+def glorpfinder(fr):
+    I = list(range(N))
+    data = pos[:, j].reshape(-1, 2)
+    r = compute_omega(data)
+    glorp = [[]]
+    for i in I:
+        if len(r[i]) < 6:
+            glorp[0].append(i)
+    for i in glorp[0]:
+        I.remove(i)
+    for k in range(1, 7):
+        glorp.append([])
+        for i in I:
+            if not set(r[i]).intersection(set(glorp[k - 1])):
+                glorp[k].append(i)
+        for i in glorp[k]:
+            I.remove(i)
+    out = np.zeros(N)
+    for k in range(7):
+        for i in glorp[k]:
+            out[i] = k
+    return out
+
+
 def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
@@ -95,7 +119,7 @@ def update(frame):
 
 print('Rendering')
 true_start_time = time.time()
-ani = animation.FuncAnimation(fig, update, frames=range(st, len(t)), interval=20)
+#ani = animation.FuncAnimation(fig, update, frames=range(st, len(t)), interval=20)
 end_time = time.time()
 print("Rendering time: ", end_time - true_start_time)
 
@@ -106,6 +130,9 @@ end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
 
+data = pos[:, 829].reshape(-1, 2)
+sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
+sc.set_array(glorpfinder(829))
 plt.show()
 
 print(fatglorp)
