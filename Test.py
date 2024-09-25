@@ -11,9 +11,9 @@ data_dir = 'Data/'
 # Simulation ID
 sim_id = "bigSim"
 
-fg0 = 6
-f0 = 6
-tau0 = 6
+fg0 = 1.5
+f0 = 12
+tau0 = 1.5
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 
@@ -53,42 +53,43 @@ horse = np.zeros(N)
 r = sparse.lil_array((N, 1)).rows
 oldr = r[0].copy()
 st = 500
-fatglorp = [0,0,0,0,0]
+fatglorp = np.zeros(7)
 
-for j in range(len(t)):
+for j in range(st,len(t)):
     smallhorse = np.zeros(N)
     glorp = [[]]
     data = pos[:, j].reshape(-1, 2)
     oldr = r
     r = compute_omega(data)
     for i in range(N):
-        if (r[i] != oldr[i]):
-            smallhorse[i] += 1
+        if r[i] != oldr[i]:
+            smallhorse[i] = 1
     I = list(range(N))
     for i in I:
-        if len(r[i]) < 6:
+        if len(r[i]) < 5:
             glorp[0].append(i)
     for i in glorp[0]:
         I.remove(i)
-    for k in range(1, 5):
+    for k in range(1, 7):
         glorp.append([])
         for i in I:
             if not set(glorp[k - 1]).intersection(set(r[i])):
                 glorp[k].append(i)
         for i in glorp[k]:
             I.remove(i)
-    snip = np.zeros(len(glorp))
-    for i in range(len(glorp)):
+    snip = np.zeros(7)
+    for i in range(7):
         for k in glorp[i]:
-            snip[i] += omega_alltime[k, j]
-        snip[i] /= 1 if len(glorp[i]) == 0 else len(glorp[i])
-    fatglorp = np.column_stack((fatglorp, snip))
-    horse = np.column_stack((horse, smallhorse))
+            snip[i] += smallhorse[k]
+        snip[i] /= (1 if len(glorp[i]) == 0 else len(glorp[i]))
+    fatglorp += snip
+    horse += smallhorse
+
 
 def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
-    sc.set_array(horse[:, frame])
+    sc.set_array(horse)
     return sc,
 
 
@@ -107,4 +108,4 @@ print("Total time: ", end_time - true_start_time)
 
 plt.show()
 
-print(fatglorp[:,5])
+print(fatglorp)
