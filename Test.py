@@ -53,7 +53,7 @@ horse = np.zeros(N)
 r = sparse.lil_array((N, 1)).rows
 oldr = r[0].copy()
 st = 500
-fatglorp = []
+fatglorp = [0,0,0,0,0]
 
 for j in range(len(t)):
     smallhorse = np.zeros(N)
@@ -62,28 +62,26 @@ for j in range(len(t)):
     oldr = r
     r = compute_omega(data)
     for i in range(N):
-        if (r[i] != oldr[i]).count_nonzero() == 0:
+        if (r[i] != oldr[i]):
             smallhorse[i] += 1
     I = list(range(N))
     for i in I:
         if len(r[i]) < 6:
-            glorp.append(i)
-    for i in glorp:
+            glorp[0].append(i)
+    for i in glorp[0]:
         I.remove(i)
-    k = 1
-    while len(I) > 0:
+    for k in range(1, 5):
         glorp.append([])
         for i in I:
             if not set(glorp[k - 1]).intersection(set(r[i])):
                 glorp[k].append(i)
         for i in glorp[k]:
             I.remove(i)
-        k += 1
-    snip = []
+    snip = np.zeros(len(glorp))
     for i in range(len(glorp)):
         for k in glorp[i]:
             snip[i] += omega_alltime[k, j]
-        snip[i] /= len(glorp[i])
+        snip[i] /= 1 if len(glorp[i]) == 0 else len(glorp[i])
     fatglorp = np.column_stack((fatglorp, snip))
     horse = np.column_stack((horse, smallhorse))
 
@@ -102,10 +100,11 @@ print("Rendering time: ", end_time - true_start_time)
 
 print('Writing')
 start_time = time.time()
-ani.save(data_dir + sim_id + '/' + sim_id + '_animation-graph.gif', fps=30, codec='hevc_nvenc')
+#ani.save(data_dir + sim_id + '/' + sim_id + '_animation-graph.gif', fps=30, codec='hevc_nvenc')
 end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
 
 plt.show()
 
+print(fatglorp[:,5])
