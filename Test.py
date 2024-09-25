@@ -74,7 +74,7 @@ for j in range(len(t)):
     while len(I) > 0:
         glorp.append([])
         for i in I:
-            if set(r[i]).intersection(set(glorp[k - 1])):
+            if not set(glorp[k - 1]).intersection(set(r[i])):
                 glorp[k].append(i)
         for i in glorp[k]:
             I.remove(i)
