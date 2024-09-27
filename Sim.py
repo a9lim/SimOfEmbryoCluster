@@ -16,19 +16,19 @@ np.random.seed()
 data_dir = 'Data/'
 
 # Simulation ID
-sim_id = "bigSim"
+sim_id = "veruverybigSim2"
 print("Simulation ID: " + sim_id)
 
 make_video = True
 
 # Simulation time for ODE model
-sim_times = np.linspace(0, 2000, 1000)
+sim_times = np.linspace(0, 5000, 2500)
 
 # Number of disks
-N = 10
+N = 200
 
 # Size of periodic box (in units of disk size)
-L = 20
+L = 60
 
 # Periodic domain?
 per_dom = False
@@ -38,13 +38,13 @@ surf_pot = False
 well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
-fg0 = 320
+fg0 = 1.5
 fg = fg0 + (fg0/3) * np.random.randn(N)  # Units: [radius^2]/second
 
 # Strength of rotational near-field interactions of neighbouring particles
 # Free spinning calibration
-f0 = 0.035
-tau0 = 0.14
+f0 = 12
+tau0 = 0.75
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 f0 = -f0

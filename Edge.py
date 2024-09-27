@@ -44,7 +44,7 @@ fig, ax = plt.subplots()
 sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
 cbar.set_label('Distance From Edge')
-cbar.mappable.set_norm(Normalize(vmin=0, vmax=120))
+cbar.mappable.set_norm(Normalize(vmin=0, vmax=7))
 ax.set_xlim(-L * 0.2, L * 1.2)
 ax.set_ylim(-L * 0.2, L * 1.2)
 
@@ -53,18 +53,11 @@ horse = np.zeros(N)
 r = sparse.lil_array((N, 1)).rows
 oldr = r[0].copy()
 st = 1600
-fatglorp = np.zeros(7)
-largerhorses = np.zeros(7)
 
-for j in range(st,len(t)):
-    smallhorse = np.zeros(N)
-    data = pos[:, j].reshape(-1, 2)
-    oldr = r
-    r = compute_omega(data)
-    for i in range(N):
-        if r[i] != oldr[i]:
-            smallhorse[i] = 1
+def glorpfinder(fr):
     I = list(range(N))
+    data = pos[:, fr].reshape(-1, 2)
+    r = compute_omega(data)
     glorp = [[]]
     for i in I:
         if len(r[i]) < 6:
@@ -74,37 +67,36 @@ for j in range(st,len(t)):
     for k in range(1, 7):
         glorp.append([])
         for i in I:
-            if set(glorp[k - 1]).intersection(set(r[i])):
+            if set(r[i]).intersection(set(glorp[k - 1])):
                 glorp[k].append(i)
         for i in glorp[k]:
             I.remove(i)
-    for i in range(7):
-        for k in glorp[i]:
-            fatglorp[i] += smallhorse[k]
-        largerhorses[i] += len(glorp[i])
-    horse += smallhorse
+    out = np.ones(N)*-1
+    for k in range(7):
+        for i in glorp[k]:
+            out[i] = k
+    return out
 
 
 def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
-    sc.set_array(horse)
+    sc.set_array(glorpfinder(frame))
     return sc,
 
 
 print('Rendering')
 true_start_time = time.time()
-ani = animation.FuncAnimation(fig, update, frames=range(st, len(t)), interval=20)
+ani = animation.FuncAnimation(fig, update, frames=range(st, len(t)), interval=100)
 end_time = time.time()
 print("Rendering time: ", end_time - true_start_time)
 
 print('Writing')
 start_time = time.time()
-ani.save(data_dir + sim_id + '/' + sim_id + '_animation-graph.gif', fps=30, codec='hevc_nvenc')
+#ani.save(data_dir + sim_id + '/' + sim_id + '_animation-graph-edge.gif', fps=30, codec='hevc_nvenc')
 end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
 
 plt.show()
 
-print(fatglorp/largerhorses)
