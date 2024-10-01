@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 data_dir = 'Data/'
 
 # Simulation ID
-sim_id = "veruverybigSim2"
+sim_id = "veruverybigSim3"
 
 fg0 = 1.5
 f0 = 12
-tau0 = 0.75
+tau0 = 3
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 
@@ -32,7 +32,7 @@ def compute_omega(pos):
     dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
-    nh_matrix = (rij < 4.2).astype(int) - np.eye(N, dtype=int)
+    nh_matrix = (rij < 3.6).astype(int) - np.eye(N, dtype=int)
     return sparse.lil_array(nh_matrix).rows
 
 
@@ -43,20 +43,21 @@ size = (512/L)**2
 fig, ax = plt.subplots()
 sc = ax.scatter([], [], c=[], cmap='jet', s=size, linewidths=0)
 cbar = plt.colorbar(sc)
-cbar.set_label('Distance From Edge')
+cbar.set_label('Neighbor Exchanges')
 cbar.mappable.set_norm(Normalize(vmin=0, vmax=120))
 ax.set_xlim(-L * 0.2, L * 1.2)
 ax.set_ylim(-L * 0.2, L * 1.2)
 
 horse = np.zeros(N)
+horser = np.zeros(N)
 
 r = sparse.lil_array((N, 1)).rows
 oldr = r[0].copy()
-st = 1600
-fatglorp = np.zeros(7)
-largerhorses = np.zeros(7)
+st = 900
+fatglorp = np.zeros(8)
+largerhorses = np.zeros(8)
 
-for j in range(st,len(t)):
+for j in range(st, len(t)):
     smallhorse = np.zeros(N)
     data = pos[:, j].reshape(-1, 2)
     oldr = r
@@ -67,28 +68,29 @@ for j in range(st,len(t)):
     I = list(range(N))
     glorp = [[]]
     for i in I:
-        if len(r[i]) < 6:
+        if len(r[i]) < 5:
             glorp[0].append(i)
     for i in glorp[0]:
         I.remove(i)
-    for k in range(1, 7):
+    for k in range(1, 8):
         glorp.append([])
         for i in I:
-            if set(glorp[k - 1]).intersection(set(r[i])):
+            if set(oldr[i]).intersection(set(glorp[k - 1])):
                 glorp[k].append(i)
         for i in glorp[k]:
             I.remove(i)
-    for i in range(7):
+    for i in range(8):
         for k in glorp[i]:
             fatglorp[i] += smallhorse[k]
         largerhorses[i] += len(glorp[i])
     horse += smallhorse
+    horser = np.column_stack((horser, horse))
 
 
 def update(frame):
     data = pos[:, frame].reshape(-1, 2)
     sc.set_offsets(np.c_[data[:, 0], data[:, 1]])
-    sc.set_array(horse)
+    sc.set_array(horser[:, frame-st])
     return sc,
 
 

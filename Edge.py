@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 data_dir = 'Data/'
 
 # Simulation ID
-sim_id = "veruverybigSim2"
+sim_id = "veruverybigSim3"
 
-fg0 = 1.5
+fg0 = 3
 f0 = 12
-tau0 = 0.75
+tau0 = 3
 
 sim_id += f"_fg{fg0}_f0{f0}_tau0{tau0}"
 
@@ -32,7 +32,7 @@ def compute_omega(pos):
     dist_y = pos[:, 1].reshape(1, -1) - pos[:, 1].reshape(-1, 1)
     # Determine angular frequency of each disk
     rij = np.hypot(dist_x, dist_y)  # Distance matrix
-    nh_matrix = (rij < 4.2).astype(int) - np.eye(N, dtype=int)
+    nh_matrix = (rij < 3.6).astype(int) - np.eye(N, dtype=int)
     return sparse.lil_array(nh_matrix).rows
 
 
@@ -52,7 +52,8 @@ horse = np.zeros(N)
 
 r = sparse.lil_array((N, 1)).rows
 oldr = r[0].copy()
-st = 1600
+st = 900
+largerhorses = np.zeros(8)
 
 def glorpfinder(fr):
     I = list(range(N))
@@ -60,11 +61,11 @@ def glorpfinder(fr):
     r = compute_omega(data)
     glorp = [[]]
     for i in I:
-        if len(r[i]) < 6:
+        if len(r[i]) < 5:
             glorp[0].append(i)
     for i in glorp[0]:
         I.remove(i)
-    for k in range(1, 7):
+    for k in range(1, 8):
         glorp.append([])
         for i in I:
             if set(r[i]).intersection(set(glorp[k - 1])):
@@ -72,9 +73,10 @@ def glorpfinder(fr):
         for i in glorp[k]:
             I.remove(i)
     out = np.ones(N)*-1
-    for k in range(7):
+    for k in range(8):
         for i in glorp[k]:
             out[i] = k
+        largerhorses[k] += len(glorp[k])
     return out
 
 
@@ -99,4 +101,5 @@ print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)
 
 plt.show()
+print(largerhorses)
 

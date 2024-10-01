@@ -16,7 +16,7 @@ np.random.seed()
 data_dir = 'Data/'
 
 # Simulation ID
-sim_id = "veruverybigSim2"
+sim_id = "veruverybigSim3"
 print("Simulation ID: " + sim_id)
 
 make_video = True
@@ -28,7 +28,7 @@ sim_times = np.linspace(0, 5000, 2500)
 N = 200
 
 # Size of periodic box (in units of disk size)
-L = 60
+L = 50
 
 # Periodic domain?
 per_dom = False
@@ -38,7 +38,7 @@ surf_pot = False
 well_length = 30  # Length scale of the well potential
 
 # Stokeslet strength (must be >0, sets the attraction strength between disks)
-fg0 = 1.5
+fg0 = 3
 fg = fg0 + (fg0/3) * np.random.randn(N)  # Units: [radius^2]/second
 
 # Strength of rotational near-field interactions of neighbouring particles
