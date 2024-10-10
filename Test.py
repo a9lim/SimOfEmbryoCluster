@@ -102,7 +102,7 @@ print("Rendering time: ", end_time - true_start_time)
 
 print('Writing')
 start_time = time.time()
-ani.save(data_dir + sim_id + '/' + sim_id + '_animation-graph.gif', fps=30, codec='hevc_nvenc')
+ani.save(data_dir + sim_id + '/' + sim_id + '_animation-graph.mp4', fps=30, codec='hevc_nvenc')
 end_time = time.time()
 print("Write time: ", end_time - start_time)
 print("Total time: ", end_time - true_start_time)

@@ -9,6 +9,8 @@ from scipy.integrate import solve_ivp
 from matplotlib import animation
 from matplotlib.colors import LogNorm
 
+# TODO: hat potential, arbitrary obstacle type objects, variable object rotation
+
 # Solve ODE system for disk model with effective hydrodynamic interactions
 np.random.seed()
 
